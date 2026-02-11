@@ -33,7 +33,6 @@ output:
       - "チェック項目"
       - "結果"
       - "詳細"
-      - "重要度"
     result_symbols:
       ok: "✅"
       warning: "⚠️"
