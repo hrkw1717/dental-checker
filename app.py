@@ -10,6 +10,7 @@ from pathlib import Path
 
 from utils.crawler import WebCrawler
 from utils.reporter import ExcelReporter
+from utils.excel_handler import ExcelHandler
 from checkers import LinkChecker, PhoneChecker, TypoChecker
 
 
@@ -65,28 +66,48 @@ def main():
     # 設定読み込み
     config = load_config()
     
-    # 入力フォーム
-    st.subheader("チェック対象情報")
-    
-    url = st.text_input(
-        "🌐 チェック対象URL",
-        placeholder="https://example.com",
-        help="チェックするウェブサイトのトップページURLを入力してください"
+    # Excelファイルのアップロード
+    st.subheader("📁 設定ファイルのロード")
+    uploaded_file = st.file_uploader(
+        "DC-config.xlsxをアップロードしてください",
+        type=["xlsx"],
+        help="プレミアムプラン用の情報を同期し、チェック対象を取得します"
     )
-    
-    clinic_name = st.text_input(
-        "🏥 医院名",
-        placeholder="〇〇歯科医院",
-        help="レポートファイル名に使用されます"
-    )
-    
-    # 電話番号設定（オプション）
-    st.subheader("正しい連絡先情報")
-    correct_phone = st.text_input(
-        "電話番号",
-        placeholder="03-1234-5678",
-        help="この番号と照合します（ハイフン付きで入力）"
-    )
+
+    url = ""
+    clinic_name = ""
+    correct_phone = ""
+
+    if uploaded_file:
+        # ファイルの保存
+        temp_path = "DC-config.xlsx"
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        # Excel操作
+        handler = ExcelHandler(temp_path)
+        if handler.load():
+            with st.spinner("シート間を同期しています..."):
+                handler.sync_sheets()
+            
+            # 情報取得
+            url, clinic_name, correct_phone = handler.get_basic_info()
+            
+            if url and clinic_name:
+                st.success(f"✅ 設定を読み込みました: **{clinic_name}**")
+                
+                # 取得情報の確認用表示
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"🌐 **URL**: {url}")
+                with col2:
+                    st.info(f"📞 **電話**: {correct_phone}")
+            else:
+                st.warning("⚠️ Excel内からURLまたは医院名が見つかりませんでした。")
+    else:
+        st.info("💡 まずは DC-config.xlsx をアップロードしてください。")
+
+    st.markdown("---")
     
     # Basic認証設定（Secretsから取得、UIには表示しない）
     try:
