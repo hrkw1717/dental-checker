@@ -51,7 +51,7 @@ class LinkChecker(BaseChecker):
             return results
         
         # 各リンクをチェック
-        broken_links = []
+        broken_links_info = []
         for link in links:
             href = link["href"]
             
@@ -65,17 +65,18 @@ class LinkChecker(BaseChecker):
                 href = urljoin(page_url, href)
             
             # リンクをチェック
-            if not self._check_link(href, base_domain):
-                broken_links.append(href)
+            is_valid, status_code = self._check_link(href, base_domain)
+            if not is_valid:
+                broken_links_info.append(f"{href} (Status: {status_code})")
         
         # 結果を作成
-        if broken_links:
+        if broken_links_info:
             results.append(CheckResult(
                 page_url=page_url,
                 check_name="リンク切れ",
                 status="error",
-                details=f"リンク切れを検出\n" + "\n".join(broken_links[:10]) + 
-                        (f"\n他{len(broken_links)-10}件" if len(broken_links) > 10 else ""),
+                details=f"リンク切れを検出\n" + "\n".join(broken_links_info[:10]) + 
+                        (f"\n他{len(broken_links_info)-10}件" if len(broken_links_info) > 10 else ""),
                 severity=severity
             ))
         else:
@@ -89,7 +90,7 @@ class LinkChecker(BaseChecker):
         
         return results
     
-    def _check_link(self, url: str, base_domain: str) -> bool:
+    def _check_link(self, url: str, base_domain: str) -> tuple[bool, str]:
         """
         リンクが有効かチェック
         
@@ -98,13 +99,17 @@ class LinkChecker(BaseChecker):
             base_domain: チェック対象サイトのドメイン
         
         Returns:
-            有効ならTrue、無効ならFalse
+            (有効ならTrue、ステータスコードまたはエラーメッセージ)
         """
         from urllib.parse import urlparse
         target_domain = urlparse(url).netloc
         
+        # ドメイン正規化（www. を除外して比較）
+        def normalize_domain(d):
+            return d.replace("www.", "")
+        
         # 同一ドメインの場合のみBasic認証を送信する
-        request_auth = self.auth if target_domain == base_domain else None
+        request_auth = self.auth if normalize_domain(target_domain) == normalize_domain(base_domain) else None
         
         # ブラウザ風のUser-Agentを設定
         headers = {
@@ -124,37 +129,39 @@ class LinkChecker(BaseChecker):
                 headers=headers
             )
             
-            # HEADリクエストが成功した場合
-            if response.status_code < 400:
-                return True
+            # 200〜399なら成功とみなす
+            if 200 <= response.status_code < 400:
+                return True, str(response.status_code)
             
-            # HEADリクエストが失敗した場合（405 Method Not Allowedなど）
-            # GETリクエストでリトライ
-            if response.status_code in [405, 403, 501]:
-                try:
-                    response = requests.get(
-                        url, 
-                        timeout=timeout, 
-                        allow_redirects=True,
-                        auth=request_auth,
-                        headers=headers
-                    )
-                    return response.status_code < 400
-                except requests.exceptions.RequestException:
-                    return False
-            
-            return False
-        
-        except requests.exceptions.RequestException:
-            # HEADリクエスト自体が失敗した場合、GETリクエストで再試行
+            # HEADが失敗した場合（ステータスコードを問わず）、GETで再試行
             try:
                 response = requests.get(
                     url, 
                     timeout=timeout, 
                     allow_redirects=True,
                     auth=request_auth,
-                    headers=headers
+                    headers=headers,
+                    stream=True  # 巨大なファイルのダウンロードを避ける
                 )
-                return response.status_code < 400
-            except requests.exceptions.RequestException:
-                return False
+                if 200 <= response.status_code < 400:
+                    return True, str(response.status_code)
+                return False, str(response.status_code)
+            except requests.exceptions.RequestException as e:
+                return False, f"GET Error: {type(e).__name__}"
+            
+        except requests.exceptions.RequestException as e:
+            # HEAD自体が例外（タイムアウト等）で失敗した場合、GETで再試行
+            try:
+                response = requests.get(
+                    url, 
+                    timeout=timeout, 
+                    allow_redirects=True,
+                    auth=request_auth,
+                    headers=headers,
+                    stream=True
+                )
+                if 200 <= response.status_code < 400:
+                    return True, str(response.status_code)
+                return False, str(response.status_code)
+            except requests.exceptions.RequestException as e2:
+                return False, f"Error: {type(e2).__name__}"
