@@ -33,6 +33,10 @@ class LinkChecker(BaseChecker):
         results = []
         severity = self.get_severity()
         
+        # ベースドメインを取得（認証情報の送信判定用）
+        from urllib.parse import urlparse
+        base_domain = urlparse(page_url).netloc
+        
         # 全てのリンクを取得
         links = soup.find_all("a", href=True)
         
@@ -61,7 +65,7 @@ class LinkChecker(BaseChecker):
                 href = urljoin(page_url, href)
             
             # リンクをチェック
-            if not self._check_link(href):
+            if not self._check_link(href, base_domain):
                 broken_links.append(href)
         
         # 結果を作成
@@ -85,23 +89,39 @@ class LinkChecker(BaseChecker):
         
         return results
     
-    def _check_link(self, url: str) -> bool:
+    def _check_link(self, url: str, base_domain: str) -> bool:
         """
         リンクが有効かチェック
         
         Args:
             url: チェックするURL
+            base_domain: チェック対象サイトのドメイン
         
         Returns:
             有効ならTrue、無効ならFalse
         """
+        from urllib.parse import urlparse
+        target_domain = urlparse(url).netloc
+        
+        # 同一ドメインの場合のみBasic認証を送信する
+        request_auth = self.auth if target_domain == base_domain else None
+        
+        # ブラウザ風のUser-Agentを設定
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        }
+        
+        # タイムアウトを長めに設定
+        timeout = 10
+        
         try:
             # まずHEADリクエストで試す（高速）
             response = requests.head(
                 url, 
-                timeout=self.timeout, 
+                timeout=timeout, 
                 allow_redirects=True,
-                auth=self.auth  # Basic認証情報を渡す
+                auth=request_auth,
+                headers=headers
             )
             
             # HEADリクエストが成功した場合
@@ -114,9 +134,10 @@ class LinkChecker(BaseChecker):
                 try:
                     response = requests.get(
                         url, 
-                        timeout=self.timeout, 
+                        timeout=timeout, 
                         allow_redirects=True,
-                        auth=self.auth  # Basic認証情報を渡す
+                        auth=request_auth,
+                        headers=headers
                     )
                     return response.status_code < 400
                 except requests.exceptions.RequestException:
@@ -129,9 +150,10 @@ class LinkChecker(BaseChecker):
             try:
                 response = requests.get(
                     url, 
-                    timeout=self.timeout, 
+                    timeout=timeout, 
                     allow_redirects=True,
-                    auth=self.auth  # Basic認証情報を渡す
+                    auth=request_auth,
+                    headers=headers
                 )
                 return response.status_code < 400
             except requests.exceptions.RequestException:
