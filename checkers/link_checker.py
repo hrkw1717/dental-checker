@@ -70,8 +70,8 @@ class LinkChecker(BaseChecker):
                 page_url=page_url,
                 check_name="リンク切れ",
                 status="error",
-                details=f"リンク切れを検出: {', '.join(broken_links[:5])}" + 
-                        (f" 他{len(broken_links)-5}件" if len(broken_links) > 5 else ""),
+                details=f"リンク切れを検出\n" + "\n".join(broken_links[:10]) + 
+                        (f"\n他{len(broken_links)-10}件" if len(broken_links) > 10 else ""),
                 severity=severity
             ))
         else:

@@ -21,13 +21,14 @@ class ExcelReporter:
         self.config = config
         self.output_config = config.get("output", {}).get("excel", {})
         self.columns = self.output_config.get("columns", [
-            "No", "ページ", "チェック項目", "結果", "詳細", "重要度"
+            "No", "ページ", "チェック項目", "結果", "詳細"
         ])
         self.result_symbols = self.output_config.get("result_symbols", {
             "ok": "✅",
             "warning": "⚠️",
             "error": "❌"
         })
+        self.default_font = Font(name="メイリオ", size=10)
     
     def generate_report(self, clinic_name: str, results: List[Dict]) -> BytesIO:
         """
@@ -64,7 +65,7 @@ class ExcelReporter:
     def _create_header(self, ws):
         """ヘッダー行を作成"""
         header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        header_font = Font(name="メイリオ", bold=True, color="FFFFFF")
         
         for col_idx, column_name in enumerate(self.columns, start=1):
             cell = ws.cell(row=1, column=col_idx, value=column_name)
@@ -79,19 +80,19 @@ class ExcelReporter:
         # 結果ステータスに応じた記号
         status_symbol = self.result_symbols.get(result["status"], result["status"])
         
-        # 行データ
+        # 行データ（重要度を除外）
         row_data = [
             row_num,
             result.get("page_url", ""),
             result.get("check_name", ""),
             status_symbol,
-            result.get("details", ""),
-            result.get("severity", "")
+            result.get("details", "")
         ]
         
         # セルに値を設定
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font = self.default_font
             cell.alignment = Alignment(vertical="top", wrap_text=True)
             
             # ステータスに応じて背景色を設定
@@ -110,8 +111,7 @@ class ExcelReporter:
             "ページ": 40,
             "チェック項目": 20,
             "結果": 10,
-            "詳細": 60,
-            "重要度": 12
+            "詳細": 80
         }
         
         for col_idx, column_name in enumerate(self.columns, start=1):
