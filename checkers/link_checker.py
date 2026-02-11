@@ -5,7 +5,8 @@
 """
 
 import requests
-from typing import List
+import time
+from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
 from .base import BaseChecker, CheckResult
 
@@ -17,6 +18,7 @@ class LinkChecker(BaseChecker):
         super().__init__(config)
         self.timeout = config.get("checks", {}).get("link_check", {}).get("timeout", 5)
         self.auth = auth  # Basic認証情報 (username, password)
+        self._cache = {}  # チェック済みURLのキャッシュ {url: (is_valid, status_code)}
     
     def check(self, page_url: str, page_content: str, soup: BeautifulSoup) -> List[CheckResult]:
         """
@@ -90,7 +92,7 @@ class LinkChecker(BaseChecker):
         
         return results
     
-    def _check_link(self, url: str, base_domain: str) -> tuple[bool, str]:
+    def _check_link(self, url: str, base_domain: str) -> Tuple[bool, str]:
         """
         リンクが有効かチェック
         
@@ -101,6 +103,10 @@ class LinkChecker(BaseChecker):
         Returns:
             (有効ならTrue、ステータスコードまたはエラーメッセージ)
         """
+        # 1. キャッシュチェック
+        if url in self._cache:
+            return self._cache[url]
+
         from urllib.parse import urlparse
         target_domain = urlparse(url).netloc
         
@@ -108,8 +114,14 @@ class LinkChecker(BaseChecker):
         def normalize_domain(d):
             return d.replace("www.", "")
         
+        is_internal = normalize_domain(target_domain) == normalize_domain(base_domain)
+        
+        # 2. 外部ドメインの場合のみ待機（レート制限回避）
+        if not is_internal:
+            time.sleep(1.0)
+        
         # 同一ドメインの場合のみBasic認証を送信する
-        request_auth = self.auth if normalize_domain(target_domain) == normalize_domain(base_domain) else None
+        request_auth = self.auth if is_internal else None
         
         # ブラウザ風のUser-Agentを設定
         headers = {
@@ -131,26 +143,11 @@ class LinkChecker(BaseChecker):
             
             # 200〜399なら成功とみなす
             if 200 <= response.status_code < 400:
-                return True, str(response.status_code)
+                res = (True, str(response.status_code))
+                self._cache[url] = res
+                return res
             
             # HEADが失敗した場合（ステータスコードを問わず）、GETで再試行
-            try:
-                response = requests.get(
-                    url, 
-                    timeout=timeout, 
-                    allow_redirects=True,
-                    auth=request_auth,
-                    headers=headers,
-                    stream=True  # 巨大なファイルのダウンロードを避ける
-                )
-                if 200 <= response.status_code < 400:
-                    return True, str(response.status_code)
-                return False, str(response.status_code)
-            except requests.exceptions.RequestException as e:
-                return False, f"GET Error: {type(e).__name__}"
-            
-        except requests.exceptions.RequestException as e:
-            # HEAD自体が例外（タイムアウト等）で失敗した場合、GETで再試行
             try:
                 response = requests.get(
                     url, 
@@ -161,7 +158,34 @@ class LinkChecker(BaseChecker):
                     stream=True
                 )
                 if 200 <= response.status_code < 400:
-                    return True, str(response.status_code)
-                return False, str(response.status_code)
+                    res = (True, str(response.status_code))
+                else:
+                    res = (False, str(response.status_code))
+                self._cache[url] = res
+                return res
+            except requests.exceptions.RequestException as e:
+                res = (False, f"GET Error: {type(e).__name__}")
+                self._cache[url] = res
+                return res
+            
+        except requests.exceptions.RequestException as e:
+            # HEAD自体が例外で失敗した場合、GETで再試行
+            try:
+                response = requests.get(
+                    url, 
+                    timeout=timeout, 
+                    allow_redirects=True,
+                    auth=request_auth,
+                    headers=headers,
+                    stream=True
+                )
+                if 200 <= response.status_code < 400:
+                    res = (True, str(response.status_code))
+                else:
+                    res = (False, str(response.status_code))
+                self._cache[url] = res
+                return res
             except requests.exceptions.RequestException as e2:
-                return False, f"Error: {type(e2).__name__}"
+                res = (False, f"Error: {type(e2).__name__}")
+                self._cache[url] = res
+                return res
