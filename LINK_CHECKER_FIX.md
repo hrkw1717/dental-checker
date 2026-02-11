@@ -8,7 +8,7 @@
 
 ```
 チェック対象: https://visca-137.sub.jp/itami-ganka.com/
-Basic認証: ID=visca, pass=5151
+Basic認証: ID=your_id, pass=your_password
 
 ページ内のリンク: https://visca-137.sub.jp/itami-ganka.com/eye/
 ```
@@ -89,7 +89,7 @@ checkers = [
 
 ```
 チェック対象: https://visca-137.sub.jp/itami-ganka.com/
-Basic認証: ID=visca, pass=5151
+Basic認証: ID=your_id, pass=your_password
 
 ページ内のリンク: https://visca-137.sub.jp/itami-ganka.com/eye/
 ```

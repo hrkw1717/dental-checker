@@ -80,8 +80,8 @@ def main():
     
     # Basic認証（オプション）
     with st.expander("🔐 Basic認証（必要な場合のみ）"):
-        auth_id = st.text_input("ID", value="visca", key="auth_id")
-        auth_pass = st.text_input("パスワード", value="5151", type="password", key="auth_pass")
+        auth_id = st.text_input("ID", value="", key="auth_id")
+        auth_pass = st.text_input("パスワード", value="", type="password", key="auth_pass")
     
     st.markdown("---")
     
