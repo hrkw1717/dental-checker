@@ -30,23 +30,33 @@ def main():
         layout="centered"
     )
     
-    # 背景画像を設定
-    st.markdown("""
-        <style>
-        .stApp {
-            background-image: url('./app/static/dog.png');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-        }
-        .main > div {
-            background-color: rgba(255, 255, 255, 0.95);
-            padding: 2rem;
-            border-radius: 10px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # 背景画像を読み込み（Base64エンコード）
+    import base64
+    def get_base64_image(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+
+    try:
+        bg_image = get_base64_image("dog.png")
+        st.markdown(f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/png;base64,{bg_image}");
+                background-size: contain;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            .main > div {{
+                background-color: rgba(255, 255, 255, 0.9);
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+    except Exception:
+        pass
     
     # タイトル
     st.title("📋 クリニック公開前チェック")
