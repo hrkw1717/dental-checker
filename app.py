@@ -117,8 +117,16 @@ def main():
         auth_id = ""
         auth_pass = ""
     
-    st.markdown("---")
-    
+    # session_stateの初期化
+    if "results" not in st.session_state:
+        st.session_state.results = None
+    if "checked_urls" not in st.session_state:
+        st.session_state.checked_urls = None
+    if "excel_data" not in st.session_state:
+        st.session_state.excel_data = None
+    if "last_clinic_name" not in st.session_state:
+        st.session_state.last_clinic_name = None
+
     # チェック開始ボタン
     if st.button("🚀 チェック開始", type="primary", use_container_width=True):
         
@@ -140,45 +148,55 @@ def main():
             with st.spinner("チェック実行中..."):
                 results, checked_urls = run_checks(url, config, auth_id, auth_pass)
             
-            # 結果サマリー
-            st.success("✅ チェック完了！")
-            
-            # チェックしたURL一覧を表示
-            st.markdown("""
-                <div style="background-color: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
-                    <strong>チェックしたページ:</strong><br>
-                    {}
-                </div>
-            """.format("<br>".join(checked_urls)), unsafe_allow_html=True)
-            
-            ok_count = sum(1 for r in results if r["status"] == "ok")
-            warning_count = sum(1 for r in results if r["status"] == "warning")
-            error_count = sum(1 for r in results if r["status"] == "error")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("✅ OK", ok_count)
-            with col2:
-                st.metric("⚠️ 警告", warning_count)
-            with col3:
-                st.metric("❌ エラー", error_count)
+            # 状態を保存
+            st.session_state.results = results
+            st.session_state.checked_urls = checked_urls
+            st.session_state.last_clinic_name = clinic_name
             
             # Excelレポート生成
             reporter = ExcelReporter(config)
-            excel_data = reporter.generate_report(clinic_name, results)
+            st.session_state.excel_data = reporter.generate_report(clinic_name, results)
             
-            # ダウンロードボタン
-            st.download_button(
-                label="📥 結果をダウンロード (Excel)",
-                data=excel_data,
-                file_name=f"{clinic_name}チェック結果.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        
+            st.success("✅ チェック完了！")
+            
         except Exception as e:
             st.error(f"❌ エラーが発生しました: {str(e)}")
             st.exception(e)
+
+    # チェック結果が表示可能な場合に表示（ボタンの外側に配置して永続化）
+    if st.session_state.results and st.session_state.checked_urls:
+        st.markdown("---")
+        st.subheader("📊 チェック結果サマリー")
+        
+        # チェックしたURL一覧を表示
+        st.markdown("""
+            <div style="background-color: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                <strong>チェックしたページ:</strong><br>
+                {}
+            </div>
+        """.format("<br>".join(st.session_state.checked_urls)), unsafe_allow_html=True)
+        
+        ok_count = sum(1 for r in st.session_state.results if r["status"] == "ok")
+        warning_count = sum(1 for r in st.session_state.results if r["status"] == "warning")
+        error_count = sum(1 for r in st.session_state.results if r["status"] == "error")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("✅ OK", ok_count)
+        with col2:
+            st.metric("⚠️ 警告", warning_count)
+        with col3:
+            st.metric("❌ エラー", error_count)
+        
+        # ダウンロードボタン
+        if st.session_state.excel_data:
+            st.download_button(
+                label="📥 結果をダウンロード (Excel)",
+                data=st.session_state.excel_data,
+                file_name=f"{st.session_state.last_clinic_name}チェック結果.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
 
 def run_checks(url: str, config: dict, auth_id: str = "", auth_pass: str = ""):
