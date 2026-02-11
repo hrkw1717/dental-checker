@@ -91,6 +91,10 @@ class ExcelReporter:
         
         # セルに値を設定
         for col_idx, value in enumerate(row_data, start=1):
+            # 文字列の場合は改行コードを Windows 標準 (CRLF) に変換
+            if isinstance(value, str):
+                value = value.replace("\n", "\r\n")
+            
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.font = self.default_font
             cell.alignment = Alignment(vertical="top", wrap_text=True)
