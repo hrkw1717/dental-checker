@@ -7,6 +7,7 @@ Phase 1: リンク切れ、電話番号、誤字脱字の3つのチェック機�
 import streamlit as st
 import yaml
 from pathlib import Path
+from typing import List, Dict, Tuple, Optional
 
 from utils.crawler import WebCrawler
 from utils.reporter import ExcelReporter
@@ -65,6 +66,14 @@ def main():
     
     # 設定読み込み
     config = load_config()
+
+    # Basic認証設定（Secretsから取得、UIには表示しない）
+    try:
+        auth_id = st.secrets.get("BASIC_AUTH_ID", "")
+        auth_pass = st.secrets.get("BASIC_AUTH_PASS", "")
+    except Exception:
+        auth_id = ""
+        auth_pass = ""
     
     # Excelファイルのアップロード
     st.subheader("📁 設定ファイルのロード")
@@ -102,21 +111,66 @@ def main():
                     st.info(f"🌐 **URL**: {url}")
                 with col2:
                     st.info(f"📞 **電話**: {correct_phone}")
+                
+                # --- URLリストの自動収集と表示 ---
+                if "target_urls" not in st.session_state or st.session_state.get("last_uploaded_url") != url:
+                    with st.spinner("処理対象のURLを抽出しています..."):
+                        pre_crawler = WebCrawler(config)
+                        if auth_id and auth_pass:
+                            pre_crawler.set_auth(auth_id, auth_pass)
+                        pages = pre_crawler.crawl_site(url)
+                        st.session_state.target_urls = "\n".join(pages.keys())
+                        st.session_state.last_uploaded_url = url
+
+                st.markdown("---")
+                st.markdown("**【処理対象のURL一覧】不備があれば正しいURLリストをセットして下さい。**")
+                target_urls_input = st.text_area(
+                    "URLリスト入力欄",
+                    value=st.session_state.target_urls,
+                    height=200,
+                    label_visibility="collapsed",
+                    key="url_editor"
+                )
+                st.session_state.target_urls = target_urls_input
+
+                # チェック開始ボタン（テキストボックスの下に配置）
+                if st.button("🚀 チェック開始", type="primary", use_container_width=True):
+                    # 入力チェック
+                    url_list = [u.strip() for u in st.session_state.target_urls.split("\n") if u.strip()]
+                    if not url_list or not clinic_name:
+                        st.error("❌ 医院名と処理対象のURLを入力してください")
+                    else:
+                        # 設定を更新
+                        if correct_phone:
+                            if "checks" not in config:
+                                config["checks"] = {}
+                            if "phone_check" not in config["checks"]:
+                                config["checks"]["phone_check"] = {}
+                            config["checks"]["phone_check"]["correct_phone"] = correct_phone
+                        
+                        # チェック実行
+                        try:
+                            with st.spinner("チェック実行中..."):
+                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass)
+                            
+                            # 状態を保存
+                            st.session_state.results = results
+                            st.session_state.checked_urls = checked_urls
+                            st.session_state.last_clinic_name = clinic_name
+                            
+                            # Excelレポート生成
+                            reporter = ExcelReporter(config)
+                            st.session_state.excel_data = reporter.generate_report(clinic_name, results)
+                            
+                            st.success("✅ チェック完了！")
+                        except Exception as e:
+                            st.error(f"❌ エラーが発生しました: {str(e)}")
+                            st.exception(e)
             else:
                 st.warning("⚠️ Excel内からURLまたは医院名が見つかりませんでした。")
     else:
         st.info("💡 まずは DC-config.xlsx をアップロードしてください。")
 
-    st.markdown("---")
-    
-    # Basic認証設定（Secretsから取得、UIには表示しない）
-    try:
-        auth_id = st.secrets.get("BASIC_AUTH_ID", "")
-        auth_pass = st.secrets.get("BASIC_AUTH_PASS", "")
-    except Exception:
-        auth_id = ""
-        auth_pass = ""
-    
     # session_stateの初期化
     if "results" not in st.session_state:
         st.session_state.results = None
@@ -126,42 +180,6 @@ def main():
         st.session_state.excel_data = None
     if "last_clinic_name" not in st.session_state:
         st.session_state.last_clinic_name = None
-
-    # チェック開始ボタン
-    if st.button("🚀 チェック開始", type="primary", use_container_width=True):
-        
-        # 入力チェック
-        if not url or not clinic_name:
-            st.error("❌ URLと医院名を入力してください")
-            return
-        
-        # 設定を更新
-        if correct_phone:
-            if "checks" not in config:
-                config["checks"] = {}
-            if "phone_check" not in config["checks"]:
-                config["checks"]["phone_check"] = {}
-            config["checks"]["phone_check"]["correct_phone"] = correct_phone
-        
-        # チェック実行
-        try:
-            with st.spinner("チェック実行中..."):
-                results, checked_urls = run_checks(url, config, auth_id, auth_pass)
-            
-            # 状態を保存
-            st.session_state.results = results
-            st.session_state.checked_urls = checked_urls
-            st.session_state.last_clinic_name = clinic_name
-            
-            # Excelレポート生成
-            reporter = ExcelReporter(config)
-            st.session_state.excel_data = reporter.generate_report(clinic_name, results)
-            
-            st.success("✅ チェック完了！")
-            
-        except Exception as e:
-            st.error(f"❌ エラーが発生しました: {str(e)}")
-            st.exception(e)
 
     # チェック結果が表示可能な場合に表示（ボタンの外側に配置して永続化）
     if st.session_state.results and st.session_state.checked_urls:
@@ -199,12 +217,12 @@ def main():
             )
 
 
-def run_checks(url: str, config: dict, auth_id: str = "", auth_pass: str = ""):
+def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = ""):
     """
     チェックを実行
     
     Args:
-        url: チェック対象URL
+        urls: チェック対象URLリスト
         config: 設定辞書
         auth_id: Basic認証ID
         auth_pass: Basic認証パスワード
@@ -225,18 +243,30 @@ def run_checks(url: str, config: dict, auth_id: str = "", auth_pass: str = ""):
         crawler.set_auth(auth_id, auth_pass)
     
     # ページ取得
-    pages = crawler.crawl_site(url)
+    pages = {}
+    progress_text = st.empty()
+    fetch_progress = st.progress(0)
+    
+    for i, url in enumerate(urls):
+        progress_text.text(f"ページの内容を取得中 ({i+1}/{len(urls)}): {url}")
+        result = crawler.fetch_page(url)
+        if result:
+            pages[url] = result
+        fetch_progress.progress((i + 1) / len(urls))
+    
+    fetch_progress.empty()
+    progress_text.empty()
     
     if not pages:
-        st.error("ページの取得に失敗しました")
+        st.error("入力されたURLから有効なページ情報を取得できませんでした")
         return [], []
     
     # チェックしたURLのリスト
     checked_urls = list(pages.keys())
     
-    # チェッカーを初期化（Basic認証情報を渡す）
+    # チェッカーを初期化
     checkers = [
-        LinkChecker(config, auth=auth),  # 認証情報を渡す
+        LinkChecker(config, auth=auth),
         PhoneChecker(config),
         TypoChecker(config)
     ]
