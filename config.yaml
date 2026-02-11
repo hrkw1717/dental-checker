@@ -1,0 +1,72 @@
+# 歯科クリニックチェックツール設定ファイル
+
+# Claude API設定
+api:
+  # 環境変数 ANTHROPIC_API_KEY から取得
+  model: "claude-sonnet-4.5"
+  max_tokens: 4000
+
+# チェック項目設定（Phase 1）
+checks:
+  link_check:
+    enabled: true
+    timeout: 5
+    severity: "critical"
+  
+  phone_check:
+    enabled: true
+    severity: "critical"
+    # 正しい電話番号はクリニックごとに設定
+    # correct_phone: "03-1234-5678"
+  
+  typo_check:
+    enabled: true
+    severity: "high"
+    use_ai: true
+
+# 出力設定
+output:
+  excel:
+    columns:
+      - "No"
+      - "ページ"
+      - "チェック項目"
+      - "結果"
+      - "詳細"
+      - "重要度"
+    result_symbols:
+      ok: "✅"
+      warning: "⚠️"
+      error: "❌"
+
+# クローラー設定
+crawler:
+  user_agent: "DentalCheckerBot/1.0"
+  timeout: 10
+  max_pages: 20
+  # Basic認証（必要な場合）
+  # auth:
+  #   username: ""
+  #   password: ""
+  
+  # 除外URLパターン（正規表現）
+  exclude_patterns:
+    - "/news/"           # ニュース
+    - "/blog/"           # ブログ
+    - "/category/"       # カテゴリページ
+    - "/tag/"            # タグページ
+    - "/author/"         # 著者ページ
+    - "/\\d{4}/\\d{2}/"  # 日付形式のURL（例: /2024/01/）
+    - "\\?p=\\d+"        # WordPressの投稿ID（例: ?p=123）
+    - "/feed/"           # RSSフィード
+    - "/wp-admin/"       # WordPress管理画面
+    - "/wp-login"        # WordPressログイン
+
+# NG ワードリスト（Phase 2で使用）
+ng_words: []
+  # - "準備中"
+  # - "工事中"
+
+# 表記ゆれチェック（Phase 2で使用）
+notation_variants: {}
+  # "歯科医院": ["歯科クリニック", "デンタルクリニック"]
