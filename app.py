@@ -78,19 +78,13 @@ def main():
         help="この番号と照合します（ハイフン付きで入力）"
     )
     
-    # Basic認証（オプション）
-    with st.expander("🔐 Basic認証（必要な場合のみ）"):
-        # Secretsから取得を試みる（なければ空文字列）
-        try:
-            default_auth_id = st.secrets.get("BASIC_AUTH_ID", "")
-            default_auth_pass = st.secrets.get("BASIC_AUTH_PASS", "")
-        except Exception:
-            # ローカル実行などでsecretsが見つからない場合
-            default_auth_id = ""
-            default_auth_pass = ""
-
-        auth_id = st.text_input("ID", value=default_auth_id, key="auth_id")
-        auth_pass = st.text_input("パスワード", value=default_auth_pass, type="password", key="auth_pass")
+    # Basic認証設定（Secretsから取得、UIには表示しない）
+    try:
+        auth_id = st.secrets.get("BASIC_AUTH_ID", "")
+        auth_pass = st.secrets.get("BASIC_AUTH_PASS", "")
+    except Exception:
+        auth_id = ""
+        auth_pass = ""
     
     st.markdown("---")
     
