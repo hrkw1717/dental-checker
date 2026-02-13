@@ -54,6 +54,7 @@ class LinkChecker(BaseChecker):
         
         # 各リンクをチェック
         broken_links_info = []
+        checked_links_count = 0
         for link in links:
             href = link["href"]
             
@@ -73,6 +74,7 @@ class LinkChecker(BaseChecker):
                 href = urljoin(page_url, href)
             
             # リンクをチェック
+            checked_links_count += 1
             is_valid, status_code = self._check_link(href, base_domain)
             if not is_valid:
                 broken_links_info.append(f"{href} (Status: {status_code})")
@@ -92,7 +94,7 @@ class LinkChecker(BaseChecker):
                 page_url=page_url,
                 check_name="リンク切れ",
                 status="ok",
-                details=f"{len(links)}個のリンクをチェック、問題なし",
+                details=f"{checked_links_count}個のリンクをチェック、問題なし (SNSリンクは除外済み)",
                 severity=severity
             ))
         
