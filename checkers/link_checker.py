@@ -57,8 +57,14 @@ class LinkChecker(BaseChecker):
         for link in links:
             href = link["href"]
             
-            # 相対URLや特殊なURLはスキップ
-            if href.startswith("#") or href.startswith("javascript:") or href.startswith("mailto:") or href.startswith("tel:"):
+            # 相対URLや特殊なURL、または特定のSNSリンクはスキップ
+            if (href.startswith("#") or href.startswith("javascript:") or 
+                href.startswith("mailto:") or href.startswith("tel:")):
+                continue
+            
+            # SNSリンクを除外 (Instagram, X, Facebook)
+            sns_domains = ["instagram.com", "facebook.com", "twitter.com", "x.com"]
+            if any(domain in href.lower() for domain in sns_domains):
                 continue
             
             # 絶対URLに変換

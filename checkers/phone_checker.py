@@ -98,13 +98,9 @@ class PhoneChecker(BaseChecker):
                     severity=severity
                 ))
             else:
-                results.append(CheckResult(
-                    page_url=page_url,
-                    check_name="電話番号",
-                    status="ok",
-                    details=f"正しい番号({self.correct_phone})を確認",
-                    severity=severity
-                ))
+                # ユーザーの要望: 正しいならリストアップしなくてよい
+                # 何も追加せず空のリストを返す
+                pass
         else:
             results.append(CheckResult(
                 page_url=page_url,

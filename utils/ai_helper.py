@@ -86,9 +86,13 @@ class AIHelper:
     
     def _get_prompt(self, text: str, check_type: str) -> str:
         """チェックタイプに応じたプロンプトを生成"""
+        import datetime
+        now = datetime.datetime.now()
+        today_str = now.strftime("%Y年%m月%d日")
         
         if check_type == "typo":
-            return f"""以下の歯科クリニックのウェブサイトのテキストを分析し、誤字脱字や明らかな間違いを指摘してください。
+            return f"""あなたはプロの校正者です。本日（{today_str}）の視点で、以下の歯科クリニックのウェブサイトのテキストを分析し、誤字脱字や明らかな間違い、日付の矛盾（過去の日付が「予定」とされている等）を指摘してください。
+現在は2025年ですので、2024年の出来事は過去として扱ってください。
 
 【チェック対象テキスト】
 {text}

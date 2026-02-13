@@ -16,7 +16,7 @@ checks:
     enabled: true
     severity: "critical"
     # 正しい電話番号はクリニックごとに設定
-    # correct_phone: "03-1234-5678"
+    correct_phone: "0778-42-5587"
   
   typo_check:
     enabled: true
