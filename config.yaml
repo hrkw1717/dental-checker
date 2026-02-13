@@ -3,7 +3,7 @@
 # Gemini API設定
 api:
   # st.secrets または環境変数 GEMINI_API_KEY から取得
-  model: "gemini-2.0-flash"
+  model: "gemini-3-flash-preview"
 
 # チェック項目設定（Phase 1）
 checks:
