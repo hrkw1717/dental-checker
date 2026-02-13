@@ -5,12 +5,13 @@ Claude APIを使用したテキスト分析機能を提供
 """
 
 import os
+import streamlit as st
 from typing import Optional
-from anthropic import Anthropic
+import google.generativeai as genai
 
 
 class AIHelper:
-    """Claude APIを使用したAI支援機能"""
+    """Gemini APIを使用したAI支援機能"""
     
     def __init__(self, config: dict):
         """
@@ -20,17 +21,45 @@ class AIHelper:
         self.config = config
         api_config = config.get("api", {})
         
-        # APIキーを環境変数から取得
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        # APIキーの取得候補
+        key_names = ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
+        api_key = None
+        
+        # 1. st.secrets から取得
+        try:
+            for kn in key_names:
+                if kn in st.secrets:
+                    api_key = st.secrets[kn]
+                    break
+            
+            # セクション分けされている場合([gemini] api_key = "...")
+            if not api_key:
+                if "gemini" in st.secrets and "api_key" in st.secrets["gemini"]:
+                    api_key = st.secrets["gemini"]["api_key"]
+                elif "google" in st.secrets and "api_key" in st.secrets["google"]:
+                    api_key = st.secrets["google"]["api_key"]
+        except Exception:
+            # st.secrets が使えない環境（通常実行時など）
+            pass
+            
+        # 2. 環境変数 から取得
+        if not api_key:
+            for kn in key_names:
+                api_key = os.environ.get(kn)
+                if api_key:
+                    break
+            
         if not api_key:
             raise ValueError(
-                "ANTHROPIC_API_KEY環境変数が設定されていません。\n"
-                "Claude APIを使用するには、環境変数にAPIキーを設定してください。"
+                "Gemini APIキーが見つかりません。\n"
+                "以下のいずれかを設定してください：\n"
+                "1. Streamlit Secrets (GEMINI_API_KEY または GOOGLE_API_KEY)\n"
+                "2. 環境変数 (GEMINI_API_KEY または GOOGLE_API_KEY)"
             )
         
-        self.client = Anthropic(api_key=api_key)
-        self.model = api_config.get("model", "claude-sonnet-4.5")
-        self.max_tokens = api_config.get("max_tokens", 4000)
+        genai.configure(api_key=api_key)
+        self.model_name = api_config.get("model", "gemini-3-flash")
+        self.model = genai.GenerativeModel(self.model_name)
     
     def check_text(self, text: str, check_type: str = "typo") -> Optional[str]:
         """
@@ -47,15 +76,9 @@ class AIHelper:
             # チェックタイプに応じたプロンプトを生成
             prompt = self._get_prompt(text, check_type)
             
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+            response = self.model.generate_content(prompt)
             
-            return message.content[0].text
+            return response.text
         
         except Exception as e:
             print(f"AI分析エラー: {e}")

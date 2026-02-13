@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Optional
 from utils.crawler import WebCrawler
 from utils.reporter import ExcelReporter
 from utils.excel_handler import ExcelHandler
-from checkers import LinkChecker, PhoneChecker, TypoChecker
+from checkers import LinkChecker, PhoneChecker, TypoChecker, NGWordChecker
 
 
 def load_config():
@@ -151,7 +151,9 @@ def main():
                         # チェック実行
                         try:
                             with st.spinner("チェック実行中..."):
-                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass)
+                                # NG表現ルールをExcelから取得
+                                ng_rules = handler.get_ng_rules()
+                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass, ng_rules=ng_rules)
                             
                             # 状態を保存
                             st.session_state.results = results
@@ -217,7 +219,7 @@ def main():
             )
 
 
-def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = ""):
+def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = "", ng_rules: List[dict] = None):
     """
     チェックを実行
     
@@ -226,11 +228,17 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
         config: 設定辞書
         auth_id: Basic認証ID
         auth_pass: Basic認証パスワード
+        ng_rules: NG表現ルールのリスト
     
     Returns:
         (チェック結果のリスト, チェックしたURLのリスト)
     """
     all_results = []
+    
+    # 既存の設定を上書きしないようにコピー
+    run_config = config.copy()
+    if ng_rules:
+        run_config["ng_words_rules"] = ng_rules
     
     # Basic認証情報
     auth = None
@@ -238,7 +246,7 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
         auth = (auth_id, auth_pass)
     
     # クローラー初期化
-    crawler = WebCrawler(config)
+    crawler = WebCrawler(run_config)
     if auth:
         crawler.set_auth(auth_id, auth_pass)
     
@@ -266,9 +274,10 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
     
     # チェッカーを初期化
     checkers = [
-        LinkChecker(config, auth=auth),
-        PhoneChecker(config),
-        TypoChecker(config)
+        LinkChecker(run_config, auth=auth),
+        PhoneChecker(run_config),
+        TypoChecker(run_config),
+        NGWordChecker(run_config)
     ]
     
     # 各ページをチェック

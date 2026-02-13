@@ -58,6 +58,28 @@ class ExcelHandler:
 
         return url, clinic_name, phone
 
+    def get_ng_rules(self):
+        """
+        '表記規定' シートからNG表現ルールを読み込む
+        """
+        if not self.wb or '表記規定' not in self.wb.sheetnames:
+            return []
+
+        rules = []
+        sheet = self.wb['表記規定']
+        
+        # ヘッダーをスキップ（1行目）して2行目から読み込み
+        # A列: NG表現, B列: 正しい表現
+        for row in sheet.iter_rows(min_row=2):
+            bad = row[0].value
+            good = row[1].value
+            if bad and good:
+                rules.append({
+                    "bad": str(bad).strip(),
+                    "good": str(good).strip()
+                })
+        return rules
+
     def _find_value_to_right(self, sheet, keyword):
         for row in sheet.iter_rows():
             for cell in row:

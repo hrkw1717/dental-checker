@@ -1,7 +1,7 @@
 """
 誤字脱字チェッカー
 
-AI（Claude API）を使用してテキストの誤字脱字をチェック
+Gemini API を使用してテキストの誤字脱字をチェック
 """
 
 from typing import List
@@ -22,7 +22,7 @@ class TypoChecker(BaseChecker):
             try:
                 self.ai_helper = AIHelper(config)
             except ValueError as e:
-                print(f"警告: {e}")
+                print(f"警告 (TypoChecker): {e}")
                 self.use_ai = False
                 self.ai_helper = None
         else:
@@ -31,14 +31,6 @@ class TypoChecker(BaseChecker):
     def check(self, page_url: str, page_content: str, soup: BeautifulSoup) -> List[CheckResult]:
         """
         ページのテキストをAIでチェック
-        
-        Args:
-            page_url: ページのURL
-            page_content: ページのテキストコンテンツ
-            soup: BeautifulSoupオブジェクト（未使用）
-        
-        Returns:
-            CheckResultのリスト
         """
         results = []
         severity = self.get_severity()
@@ -49,7 +41,7 @@ class TypoChecker(BaseChecker):
                 page_url=page_url,
                 check_name="誤字脱字",
                 status="warning",
-                details="AI機能が無効です（ANTHROPIC_API_KEY環境変数を設定してください）",
+                details="AI機能が無効です（GEMINI_API_KEYをSecretsまたは環境変数に設定してください）",
                 severity=severity
             ))
             return results

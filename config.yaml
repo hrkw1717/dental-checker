@@ -1,10 +1,9 @@
 # 歯科クリニックチェックツール設定ファイル
 
-# Claude API設定
+# Gemini API設定
 api:
-  # 環境変数 ANTHROPIC_API_KEY から取得
-  model: "claude-sonnet-4.5"
-  max_tokens: 4000
+  # st.secrets または環境変数 GEMINI_API_KEY から取得
+  model: "gemini-3-flash"
 
 # チェック項目設定（Phase 1）
 checks:
@@ -23,6 +22,10 @@ checks:
     enabled: true
     severity: "high"
     use_ai: true
+  
+  ng_word_check:
+    enabled: true
+    severity: "high"
 
 # 出力設定
 output:
@@ -36,7 +39,7 @@ output:
     result_symbols:
       ok: "✅"
       warning: "⚠️"
-      error: "❌"
+      error: "×"
 
 # クローラー設定
 crawler:
