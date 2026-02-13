@@ -58,7 +58,7 @@ class AIHelper:
             )
         
         genai.configure(api_key=api_key)
-        self.model_name = api_config.get("model", "gemini-3-flash")
+        self.model_name = api_config.get("model", "gemini-2.0-flash")
         self.model = genai.GenerativeModel(self.model_name)
     
     def check_text(self, text: str, check_type: str = "typo") -> Optional[str]:
