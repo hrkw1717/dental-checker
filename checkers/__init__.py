@@ -10,6 +10,7 @@ from .phone_checker import PhoneChecker
 from .typo_checker import TypoChecker
 from .ng_word_checker import NGWordChecker
 from .consistency_checker import ConsistencyChecker
+from .unified_ai_checker import UnifiedAIChecker
 
 __all__ = [
     'BaseChecker',
@@ -18,5 +19,6 @@ __all__ = [
     'PhoneChecker',
     'TypoChecker',
     'NGWordChecker',
-    'ConsistencyChecker'
+    'ConsistencyChecker',
+    'UnifiedAIChecker'
 ]

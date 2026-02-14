@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Optional
 from utils.crawler import WebCrawler
 from utils.reporter import ExcelReporter
 from utils.excel_handler import ExcelHandler
-from checkers import LinkChecker, PhoneChecker, TypoChecker, NGWordChecker, ConsistencyChecker
+from checkers import LinkChecker, PhoneChecker, UnifiedAIChecker
 
 
 def load_config():
@@ -62,7 +62,7 @@ def main():
     
     # タイトル
     st.title("📋 クリニック公開前チェック")
-    st.sidebar.caption("最終更新: 2026/02/14 23:15")
+    st.sidebar.caption("最終更新: 2026/02/14 23:35")
     st.markdown("---")
     
     # 設定読み込み
@@ -252,17 +252,25 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
     if auth:
         crawler.set_auth(auth_id, auth_pass)
     
-    # ページ取得
+    import concurrent.futures
+    
+    # ページ取得の並列化
     pages = {}
     progress_text = st.empty()
     fetch_progress = st.progress(0)
     
-    for i, url in enumerate(urls):
-        progress_text.text(f"ページの内容を取得中 ({i+1}/{len(urls)}): {url}")
-        result = crawler.fetch_page(url)
-        if result:
-            pages[url] = result
-        fetch_progress.progress((i + 1) / len(urls))
+    def fetch_single_page(url):
+        return url, crawler.fetch_page(url)
+
+    max_workers = run_config.get("crawler", {}).get("max_workers", 5)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_url = {executor.submit(fetch_single_page, url): url for url in urls}
+        for i, future in enumerate(concurrent.futures.as_completed(future_to_url)):
+            url, result = future.result()
+            if result:
+                pages[url] = result
+            progress_text.text(f"ページの内容を取得中 ({i+1}/{len(urls)}): {url}")
+            fetch_progress.progress((i + 1) / len(urls))
     
     fetch_progress.empty()
     progress_text.empty()
@@ -274,29 +282,39 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
     # チェックしたURLのリスト
     checked_urls = list(pages.keys())
     
-    # チェッカーを初期化
+    # チェッカーを初期化（AI系は UnifiedAIChecker に統合）
     checkers = [
         LinkChecker(run_config, auth=auth),
         PhoneChecker(run_config),
-        TypoChecker(run_config),
-        NGWordChecker(run_config),
-        ConsistencyChecker(run_config, master_data=master_data)
+        UnifiedAIChecker(run_config, master_data=master_data, ng_rules=ng_rules)
     ]
     
-    # 各ページをチェック
+    # 各ページに対するチェック実行の並列化
     progress_bar = st.progress(0)
-    total_checks = len(pages) * len(checkers)
-    current_check = 0
+    total_tasks = len(pages)
+    current_done = 0
     
-    for page_url, (page_content, soup) in pages.items():
+    def run_all_checkers_for_page(page_url, page_data):
+        page_content, soup = page_data
+        page_results = []
         for checker in checkers:
             if checker.is_enabled():
-                results = checker.check(page_url, page_content, soup)
-                for result in results:
-                    all_results.append(result.to_dict())
-            
-            current_check += 1
-            progress_bar.progress(current_check / total_checks)
+                try:
+                    res = checker.check(page_url, page_content, soup)
+                    for r in res:
+                        page_results.append(r.to_dict())
+                except Exception as e:
+                    print(f"エラー ({checker.__class__.__name__} at {page_url}): {e}")
+        return page_results
+
+    # チェックの実行
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_page = {executor.submit(run_all_checkers_for_page, url, data): url for url, data in pages.items()}
+        for future in concurrent.futures.as_completed(future_to_page):
+            page_results = future.result()
+            all_results.extend(page_results)
+            current_done += 1
+            progress_bar.progress(current_done / total_tasks)
     
     progress_bar.empty()
     
