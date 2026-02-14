@@ -62,14 +62,22 @@ def main():
     
     # タイトル
     st.title("📋 クリニック公開前チェック")
-    st.sidebar.caption("最終更新: 2026/02/14 23:50")
+    st.sidebar.caption("最終更新: 2026/02/15 00:05")
     
     # HTMLの lang 属性を ja に変更 (SEO/アクセシビリティ対応)
+    # StreamlitのView Sourceでは en のままに見えることがありますが、ブラウザのDOM上では ja に書き換わります。
     st.markdown(
         """
         <script>
-        var html = window.parent.document.getElementsByTagName('html')[0];
-        html.setAttribute('lang', 'ja');
+        const observer = new MutationObserver(function(mutations) {
+            var html = window.parent.document.getElementsByTagName('html')[0];
+            if (html.getAttribute('lang') !== 'ja') {
+                html.setAttribute('lang', 'ja');
+            }
+        });
+        observer.observe(window.parent.document.documentElement, { attributes: true });
+        // 初回実行
+        window.parent.document.getElementsByTagName('html')[0].setAttribute('lang', 'ja');
         </script>
         """,
         unsafe_allow_html=True
