@@ -62,7 +62,18 @@ def main():
     
     # タイトル
     st.title("📋 クリニック公開前チェック")
-    st.sidebar.caption("最終更新: 2026/02/14 23:35")
+    st.sidebar.caption("最終更新: 2026/02/14 23:50")
+    
+    # HTMLの lang 属性を ja に変更 (SEO/アクセシビリティ対応)
+    st.markdown(
+        """
+        <script>
+        var html = window.parent.document.getElementsByTagName('html')[0];
+        html.setAttribute('lang', 'ja');
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
     st.markdown("---")
     
     # 設定読み込み
