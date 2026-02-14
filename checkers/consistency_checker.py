@@ -101,22 +101,34 @@ Meta情報: {json.dumps(metadata, ensure_ascii=False, indent=2)}
 7. 標榜科の矛盾: 「歯科」以外の無関係な診療科目（内科、眼科等）のキーワードが不自然に混入していないか。
 8. レイアウトの一貫性: ヘッダーやフッターに、他ページと比べて重大な欠落や構成の違いがないか（特にブログページ）。
 
-【出力形式】
-不備がある場合のみ、冒頭の挨拶などは一切含めず、以下の形式で簡潔に指摘してください。
-指摘事項が複数ある場合は、間に必ず1行の【空行】を入れてください。
+【出力形式：厳守】
+- 冒頭の挨拶（「専門家として～」「指摘いたします」等）や前置きは【絶対に】含めないでください。
+- 不備がある場合のみ、以下の形式で簡潔に指摘してください。
+- 指摘事項が複数ある場合は、間に必ず【空行】を1行入れてください。
+- 全ての指摘の行頭は必ず「★」で始めてください。
 
+形式：
 ★ [項目名]: 「該当箇所の内容」 ⇒ 指摘理由と修正案
 
 不備がない場合は「問題なし」とだけ回答してください。
 余計な解説は不要です。"""
 
         try:
-            response = self.ai_helper.model.generate_content(prompt)
-            ai_output = response.text.strip()
+            # AIHelper経由で取得（内部で _cleanup_ai_response が実行される）
+            ai_output = self.ai_helper.check_text(prompt, check_type="consistency")
             
-            if "問題なし" in ai_output or not ai_output:
+            if not ai_output or "問題なし" in ai_output:
                 return []
             
+            # 安全策: 行頭が★でない場合は付与する
+            formatted_output = []
+            for line in ai_output.split("\n"):
+                if line.strip() and not line.strip().startswith("★"):
+                    formatted_output.append(f"★ {line.strip()}")
+                else:
+                    formatted_output.append(line)
+            ai_output = "\n".join(formatted_output)
+
             return [CheckResult(
                 page_url=page_url,
                 check_name="詳細情報の整合性",

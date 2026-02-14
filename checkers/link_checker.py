@@ -81,12 +81,15 @@ class LinkChecker(BaseChecker):
         
         # 結果を作成
         if broken_links_info:
+            details = "★ リンク切れを検出しました。\n" + "\n".join([f"★ {link}" for link in broken_links_info[:10]])
+            if len(broken_links_info) > 10:
+                details += f"\n他{len(broken_links_info)-10}件"
+            
             results.append(CheckResult(
                 page_url=page_url,
                 check_name="リンク切れ",
                 status="error",
-                details=f"リンク切れを検出\n" + "\n".join(broken_links_info[:10]) + 
-                        (f"\n他{len(broken_links_info)-10}件" if len(broken_links_info) > 10 else ""),
+                details=details,
                 severity=severity
             ))
         else:

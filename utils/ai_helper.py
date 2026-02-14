@@ -77,12 +77,35 @@ class AIHelper:
             prompt = self._get_prompt(text, check_type)
             
             response = self.model.generate_content(prompt)
-            
-            return response.text
+            return self._cleanup_ai_response(response.text)
         
         except Exception as e:
             print(f"AI分析エラー: {e}")
             return None
+        
+    def _cleanup_ai_response(self, text: str) -> str:
+        """AI応答から不要な挨拶や前置きを削除"""
+        if not text:
+            return ""
+        
+        lines = text.strip().split("\n")
+        cleaned_lines = []
+        
+        # 「問題なし」が含まれる場合はそれだけを返す
+        if "問題なし" in text and len(text) < 50:
+            return "問題なし"
+            
+        for line in lines:
+            line = line.strip()
+            # 行頭が ★ で始まる行、または前の行からの続きと思われる行のみ保持
+            if line.startswith("★") or (cleaned_lines and line):
+                # 挨拶と思われる文言が含まれる行はスキップ
+                greetings = ["指摘いたします", "校正者として", "提示いただいた", "以下の通り", "分析しました"]
+                if any(g in line for g in greetings) and not line.startswith("★"):
+                    continue
+                cleaned_lines.append(line)
+        
+        return "\n".join(cleaned_lines).strip()
     
     def _get_prompt(self, text: str, check_type: str) -> str:
         """チェックタイプに応じたプロンプトを生成"""
@@ -101,8 +124,13 @@ class AIHelper:
 【チェック対象テキスト】
 {text}
 
-【指摘形式】
-問題が見つかった場合のみ、冒頭の挨拶などは一切含めず、以下の形式で指摘してください（指摘が複数ある場合は、間に必ず1行の【空行】を入れてください）：
+【指摘形式：厳守】
+- 冒頭の「プロの校正者として～」などの挨拶や前置きは【絶対に】書かないでください。
+- 指摘がある場合のみ、以下の形式で出力してください。
+- 指摘が複数ある場合は、間に必ず【空行】を1行入れてください。
+- 行頭は必ず「★ 誤:」で始めてください。
+
+形式：
 ★ 誤: 「不適切な箇所」 → 正: 「修正案（理由）」
 
 問題がない場合は「問題なし」とだけ回答してください。"""
@@ -113,8 +141,13 @@ class AIHelper:
 【チェック対象テキスト】
 {text}
 
-【指摘形式】
-不自然な表現が見つかった場合のみ、冒頭の挨拶などは一切含めず、以下の形式で指摘してください（指摘が複数ある場合は、間に必ず1行の【空行】を入れてください）：
+【指摘形式：厳守】
+- 冒頭の挨拶や前置きは【絶対に】書かないでください。
+- 不自然な表現が見つかった場合のみ、以下の形式で出力してください。
+- 指摘が複数ある場合は、間に必ず【空行】を1行入れてください。
+- 行頭は必ず「★ 不自然:」で始めてください。
+
+形式：
 ★ 不自然: 「該当箇所」 → 改善案: 「より自然な表現」
 
 問題がない場合は「問題なし」とだけ回答してください。"""

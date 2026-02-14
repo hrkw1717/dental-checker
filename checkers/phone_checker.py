@@ -63,7 +63,7 @@ class PhoneChecker(BaseChecker):
                 page_url=page_url,
                 check_name="電話番号",
                 status="error",
-                details=f"電話番号リンク(tel:)が正しくありません。正: {self.correct_phone}, 誤: {', '.join(set(incorrect_tel_links))}",
+                details=f"★ 電話番号リンク(tel:)が正しくありません。\n正: {self.correct_phone}\n誤: {', '.join(set(incorrect_tel_links))}",
                 severity=severity
             ))
             return results
@@ -94,7 +94,7 @@ class PhoneChecker(BaseChecker):
                     page_url=page_url,
                     check_name="電話番号",
                     status="warning",
-                    details=f"正しい番号({self.correct_phone})が見つかりましたが、他の番号も検出: {', '.join(set(other_phones))}",
+                    details=f"★ 正しい番号({self.correct_phone})が見つかりましたが、他の番号も検出されました。\n他: {', '.join(set(other_phones))}",
                     severity=severity
                 ))
             else:
@@ -106,7 +106,7 @@ class PhoneChecker(BaseChecker):
                 page_url=page_url,
                 check_name="電話番号",
                 status="error",
-                details=f"正しい番号({self.correct_phone})が見つかりません。検出された番号: {', '.join(set(found_phones))}",
+                details=f"★ 正しい番号({self.correct_phone})が見つかりません。\n検出された番号: {', '.join(set(found_phones))}",
                 severity=severity
             ))
         

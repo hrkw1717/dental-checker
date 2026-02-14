@@ -79,7 +79,7 @@ class TypoChecker(BaseChecker):
                 page_url=page_url,
                 check_name="誤字脱字",
                 status="warning",
-                details=f"AIチェック結果:\n{ai_result}",
+                details=ai_result,
                 severity=severity
             ))
         
