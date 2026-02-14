@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Optional
 from utils.crawler import WebCrawler
 from utils.reporter import ExcelReporter
 from utils.excel_handler import ExcelHandler
-from checkers import LinkChecker, PhoneChecker, TypoChecker, NGWordChecker
+from checkers import LinkChecker, PhoneChecker, TypoChecker, NGWordChecker, ConsistencyChecker
 
 
 def load_config():
@@ -154,7 +154,8 @@ def main():
                             with st.spinner("チェック実行中..."):
                                 # NG表現ルールをExcelから取得
                                 ng_rules = handler.get_ng_rules()
-                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass, ng_rules=ng_rules)
+                                master_data = handler.get_all_master_data()
+                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass, ng_rules=ng_rules, master_data=master_data)
                             
                             # 状態を保存
                             st.session_state.results = results
@@ -220,7 +221,7 @@ def main():
             )
 
 
-def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = "", ng_rules: List[dict] = None):
+def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = "", ng_rules: Optional[List[dict]] = None, master_data: Optional[dict] = None):
     """
     チェックを実行
     
@@ -278,7 +279,8 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
         LinkChecker(run_config, auth=auth),
         PhoneChecker(run_config),
         TypoChecker(run_config),
-        NGWordChecker(run_config)
+        NGWordChecker(run_config),
+        ConsistencyChecker(run_config, master_data=master_data)
     ]
     
     # 各ページをチェック

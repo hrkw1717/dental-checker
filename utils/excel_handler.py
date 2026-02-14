@@ -58,6 +58,25 @@ class ExcelHandler:
 
         return url, clinic_name, phone
 
+    def get_all_master_data(self):
+        """
+        'チェックリスト' シートから全てのマスターデータを取得
+        """
+        if not self.wb or 'チェックリスト' not in self.wb.sheetnames:
+            return {}
+
+        sheet = self.wb['チェックリスト']
+        keywords = [
+            "医院名", "URL", "住所", "院長名・副院長名",
+            "電話番号", "診療時間", "敬称統一表記", "GA4コード"
+        ]
+        
+        data = {}
+        for kw in keywords:
+            data[kw] = self._find_value_to_right(sheet, kw)
+        
+        return data
+
     def get_ng_rules(self):
         """
         '表記規定' シートからNG表現ルールを読み込む

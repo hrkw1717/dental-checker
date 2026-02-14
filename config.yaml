@@ -27,6 +27,10 @@ checks:
     enabled: true
     severity: "high"
 
+  consistency_check:
+    enabled: true
+    severity: "medium"
+
 # 出力設定
 output:
   excel:
