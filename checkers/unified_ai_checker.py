@@ -108,7 +108,7 @@ class UnifiedAIChecker(BaseChecker):
 URL: {page_url}
 Meta情報: {json.dumps(metadata, ensure_ascii=False, indent=2)}
 本文（抜粋）:
-{page_content[:4000]}
+{page_content[:10000]}
 
 【マスターデータ (比較用)】
 {master_summary}

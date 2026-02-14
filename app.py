@@ -174,7 +174,7 @@ def main():
                                 # NG表現ルールをExcelから取得
                                 ng_rules = handler.get_ng_rules()
                                 master_data = handler.get_all_master_data()
-                                results, checked_urls = run_checks(url_list, config, auth_id, auth_pass, ng_rules=ng_rules, master_data=master_data)
+                                results, checked_urls, raw_pages = run_checks(url_list, config, auth_id, auth_pass, ng_rules=ng_rules, master_data=master_data)
                             
                             # 状態を保存
                             st.session_state.results = results
@@ -184,6 +184,17 @@ def main():
                             # Excelレポート生成
                             reporter = ExcelReporter(config)
                             st.session_state.excel_data = reporter.generate_report(clinic_name, results)
+                            
+                            # 診断用生テキストデータを生成
+                            import io
+                            import zipfile
+                            zip_buffer = io.BytesIO()
+                            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                                for url, (content, soup) in raw_pages.items():
+                                    # URLをファイル名に安全な形式に変換
+                                    safe_filename = url.replace("https://", "").replace("http://", "").replace("/", "_").replace(":", "_") + ".txt"
+                                    zip_file.writestr(safe_filename, content)
+                            st.session_state.debug_txt_zip = zip_buffer.getvalue()
                             
                             st.success("✅ チェック完了！")
                         except Exception as e:
@@ -203,6 +214,8 @@ def main():
         st.session_state.excel_data = None
     if "last_clinic_name" not in st.session_state:
         st.session_state.last_clinic_name = None
+    if "debug_txt_zip" not in st.session_state:
+        st.session_state.debug_txt_zip = None
 
     # チェック結果が表示可能な場合に表示（ボタンの外側に配置して永続化）
     if st.session_state.results and st.session_state.checked_urls:
@@ -238,6 +251,18 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
+            
+        # 診断用データダウンロード
+        if st.session_state.debug_txt_zip:
+            with st.expander("🔍 調査・診断用 (プログラムが読み取った生データ)"):
+                st.info("AIが「文章が途切れている」と誤認する場合、以下のデータをダウンロードして内容を確認してください。")
+                st.download_button(
+                    label="📄 読み取りテキストを一括保存 (ZIP)",
+                    data=st.session_state.debug_txt_zip,
+                    file_name=f"debug_raw_text_{st.session_state.last_clinic_name}.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
 
 
 def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str = "", ng_rules: Optional[List[dict]] = None, master_data: Optional[dict] = None):
@@ -337,7 +362,7 @@ def run_checks(urls: List[str], config: dict, auth_id: str = "", auth_pass: str 
     
     progress_bar.empty()
     
-    return all_results, checked_urls
+    return all_results, checked_urls, pages
 
 
 if __name__ == "__main__":
