@@ -152,5 +152,9 @@ class AIHelper:
 
 問題がない場合は「問題なし」とだけ回答してください。"""
         
+        elif check_type == "unified":
+            # 統合チェッカーの場合は、すでに完成したプロンプトが渡されるためそのまま返す
+            return text
+        
         else:
             return f"""以下のテキストをチェックしてください：\n\n{text}"""

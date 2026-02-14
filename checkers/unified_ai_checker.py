@@ -83,6 +83,11 @@ class UnifiedAIChecker(BaseChecker):
         master_summary = json.dumps(self.master_data, ensure_ascii=False, indent=2)
         rules_text = "\n".join([f"- {r.get('bad')} ⇒ {r.get('good')}" for r in self.ng_rules])
         
+        # 今日月日を取得
+        import datetime
+        now = datetime.datetime.now()
+        today_str = now.strftime("%Y年%m月%d日")
+
         # 有効なチェック項目のリストを作成
         check_instructions = []
         if self.typo_enabled:
@@ -95,6 +100,8 @@ class UnifiedAIChecker(BaseChecker):
         instructions_str = "\n".join(check_instructions)
 
         prompt = f"""あなたは歯科Webサイト制作と校正の専門家です。
+【重要】本日は **{today_str}** です。現在は **2026年** であることを認識して精査してください。
+
 以下の【ページ情報】を精査し、指定された【チェック項目】に基づき不備を指摘してください。
 
 【ページ情報】
