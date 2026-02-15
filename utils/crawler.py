@@ -109,7 +109,12 @@ class WebCrawler:
             if urlparse(full_url).netloc == base_domain:
                 # フラグメント（#）を除去
                 full_url = full_url.split("#")[0]
-                internal_links.add(full_url)
+                
+                # 基点となるURL（base_url）配下であるかをチェック
+                # 基点URLがスラッシュで終わっていない場合は、ディレクトリとして扱うために補完を検討
+                norm_base = base_url if base_url.endswith("/") else base_url + "/"
+                if full_url.startswith(norm_base) or full_url == base_url:
+                    internal_links.add(full_url)
         
         return list(internal_links)
     
