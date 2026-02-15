@@ -87,19 +87,24 @@ class WebCrawler:
             print(f"ページ取得エラー ({url}): {e}")
             return None
     
-    def get_internal_links(self, base_url: str, soup: BeautifulSoup) -> List[str]:
+    def get_internal_links(self, base_url: str, soup: BeautifulSoup, root_url: Optional[str] = None) -> List[str]:
         """
         ページ内の内部リンクを取得
         
         Args:
-            base_url: ベースURL
+            base_url: 取得したページのURL（相対パスの解決に使用）
             soup: BeautifulSoupオブジェクト
+            root_url: クロールの基点となるURL（この配下以外は除外）
         
         Returns:
             内部リンクのリスト
         """
         internal_links = set()
         base_domain = urlparse(base_url).netloc
+        
+        # フィルタ基準URLの決定
+        filter_base = root_url if root_url else base_url
+        norm_filter_base = filter_base if filter_base.endswith("/") else filter_base + "/"
         
         for link in soup.find_all("a", href=True):
             href = link["href"]
@@ -110,10 +115,8 @@ class WebCrawler:
                 # フラグメント（#）を除去
                 full_url = full_url.split("#")[0]
                 
-                # 基点となるURL（base_url）配下であるかをチェック
-                # 基点URLがスラッシュで終わっていない場合は、ディレクトリとして扱うために補完を検討
-                norm_base = base_url if base_url.endswith("/") else base_url + "/"
-                if full_url.startswith(norm_base) or full_url == base_url:
+                # 基点となるURL配下であるかをチェック
+                if full_url.startswith(norm_filter_base) or full_url == filter_base:
                     internal_links.add(full_url)
         
         return list(internal_links)
@@ -151,8 +154,8 @@ class WebCrawler:
                 text_content, soup = result
                 visited[url] = (text_content, soup)
                 
-                # 内部リンクを取得
-                internal_links = self.get_internal_links(url, soup)
+                # 内部リンクを取得（開始URLをルートとして渡す）
+                internal_links = self.get_internal_links(url, soup, root_url=start_url)
                 for link in internal_links:
                     if link not in visited and link not in to_visit:
                         to_visit.append(link)
