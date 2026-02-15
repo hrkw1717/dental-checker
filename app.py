@@ -62,7 +62,7 @@ def main():
     
     # タイトル
     st.title("📋 クリニック公開前チェック")
-    st.sidebar.caption("最終更新: 2026/02/15 00:25")
+    st.sidebar.caption("最終更新: 2026/02/15 12:41")
     
     # HTMLの lang 属性を ja に変更 (SEO/アクセシビリティ対応)
     # StreamlitのView Sourceでは en のままに見えることがありますが、ブラウザのDOM上では ja に書き換わります。
