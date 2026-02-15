@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 import time
 import re
+import streamlit as st
 
 
 class WebCrawler:
@@ -102,9 +103,9 @@ class WebCrawler:
         internal_links = set()
         base_domain = urlparse(base_url).netloc
         
-        # フィルタ基準URLの決定
+        # フィルタ基準URLの決定（末尾スラッシュを正規化）
         filter_base = root_url if root_url else base_url
-        norm_filter_base = filter_base if filter_base.endswith("/") else filter_base + "/"
+        norm_filter_base = filter_base.rstrip("/") + "/"
         
         for link in soup.find_all("a", href=True):
             href = link["href"]
@@ -112,11 +113,12 @@ class WebCrawler:
             
             # 同じドメインのリンクのみ
             if urlparse(full_url).netloc == base_domain:
-                # フラグメント（#）を除去
+                # フラグメント（#）を除去し、重複判定のために正規化
                 full_url = full_url.split("#")[0]
                 
-                # 基点となるURL配下であるかをチェック
-                if full_url.startswith(norm_filter_base) or full_url == filter_base:
+                # 基点となるURL配下であるかをチェック（末尾スラッシュを考慮して前方一致）
+                norm_full_url = full_url.rstrip("/") + "/"
+                if norm_full_url.startswith(norm_filter_base) or full_url == filter_base:
                     internal_links.add(full_url)
         
         return list(internal_links)
@@ -163,6 +165,11 @@ class WebCrawler:
                 # サーバーに負荷をかけないよう少し待機
                 time.sleep(0.5)
         
+        if len(visited) >= self.max_pages:
+            print(f"⚠️ クロール上限（{self.max_pages}ページ）に達したため、収集を中断しました。")
+            if hasattr(st, "warning"):
+                st.warning(f"⚠️ 巡回ページ数が上限（{self.max_pages}）に達しました。一部のページが漏れている可能性があります。")
+
         if excluded_count > 0:
             print(f"\n除外したページ: {excluded_count}件")
         

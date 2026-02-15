@@ -144,9 +144,16 @@ def main():
 
                 st.markdown("---")
                 st.markdown("**【処理対象のURL一覧】不備があれば正しいURLリストをセットして下さい。**")
+                
+                # URL再抽出ボタン
+                if st.button("🔄 URLを再抽出しなおす", help="サイトを再巡回してURLリストを更新します"):
+                    if "target_urls" in st.session_state:
+                         del st.session_state.target_urls
+                    st.rerun()
+
                 target_urls_input = st.text_area(
                     "URLリスト入力欄",
-                    value=st.session_state.target_urls,
+                    value=st.session_state.target_urls if "target_urls" in st.session_state else "",
                     height=200,
                     label_visibility="collapsed",
                     key="url_editor"
